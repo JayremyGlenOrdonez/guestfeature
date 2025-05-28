@@ -54,9 +54,8 @@
                 style="display: flex; justify-content: flex-end; align-items: center; gap: 30px; margin-top: 30px;">
                 <h3 style="font-size: 1.5em; color: #333;">Total: <span id="cart-total"
                         style="color: #5b21b6;">₱{{ number_format($total, 2) }}</span></h3>
-                <a href="{{ route('clientCheckout') }}" class="btn-checkout"
-                    style="padding: 15px 30px; background-color: #5b21b6; color: white; text-decoration: none; border-radius: 30px; font-weight: bold; font-size: 1.1em; transition: background-color 0.3s;">Proceed
-                    to Checkout</a>
+                <a href="{{ route('login') }}" class="btn btn-primary">Login to Checkout / Register</a>
+                <p class="mt-2 text-muted">Please login or register to proceed with your order.</p>
             </div>
             <div style="text-align: right; margin-top: 15px;">
                 <a href="{{ route('clientProducts') }}" class="btn-continue-shopping"

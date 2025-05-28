@@ -7,8 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\Shop;
-use App\Models\Order;
-use App\Models\OrderDetail;
+
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
@@ -118,126 +117,6 @@ class ClientController extends Controller
         ];
 
         return view('client.productDetail', $data); // Ibabalik ang 'productDetail' view
-    }
-
-    /**
-     * Ito ang page kung saan magche-checkout ang user.
-     * Makikita nila ang kanilang cart at kailangan nilang ilagay ang kanilang details.
-     */
-    public function checkout(){
-        $cart = session()->get('cart'); // Kukunin ang cart mula sa session
-
-        // Kung walang laman ang cart, ibalik sa cart page na may error
-        if (!$cart || count($cart) == 0) {
-            return redirect()->route('clientCart')->with('error', 'Your cart is empty. Please add items before checking out.');
-        }
-
-        $user = auth()->user(); // Kukunin ang impormasyon ng naka-login na user (para sa pre-filling ng form)
-
-        $data = [
-            'shop' => Shop::first(), // Impormasyon ng shop
-            'title' => 'Checkout', // Titulo ng page
-            'user' => $user, // Impormasyon ng user
-        ];
-
-        return view('client.checkout', $data); // Ibabalik ang 'checkout' view
-    }
-
-    /**
-     * Sine-save nito ang order ng user.
-     * Sinusuri din ang stock ng produkto at kinakaltasan ito.
-     * Pagkatapos, lilinisin ang cart.
-     */
-    public function checkoutSave(Request $request){
-        $validator = Validator::make($request->all(), [ // Susuriin ang input ng user para sa order details
-            'name' => 'required|string|max:255',
-            'phone' => 'required|string|max:20',
-            'address' => 'required|string|max:500',
-            'note' => 'nullable|string|max:1000',
-        ]);
-        if($validator->fails()){
-            return redirect()->back()->withErrors($validator)->withInput(); // Kung may mali, ibalik sa dating page na may error
-        }
-
-        $cart = session()->get('cart'); // Kukunin ang cart
-
-        // Kung walang laman ang cart, ibalik sa cart page na may error
-        if (!$cart || count($cart) == 0) {
-            return redirect()->route('clientCart')->with('error', 'Your cart is empty. Please add items before placing an order.');
-        }
-
-        $total = 0;
-        // Susuriin ang stock ng produkto bago mag-place ng order
-        foreach ($cart as $id => $details) {
-            $product = Product::find($id);
-            if (!$product || $product->stock < $details['quantity']) {
-                return redirect()->back()->withErrors(['cart_error' => "Not enough stock for {$details['title']}. Available: {$product->stock}"])->withInput();
-            }
-            $total += $details['price'] * $details['quantity'];
-        }
-
-        $order_code = 'ORDER-' . strtoupper(Str::random(6)) . time(); // Magge-generate ng unique order code
-
-        try {
-            // Gagawin ang Order
-            $order = Order::create([
-                'user_id' => auth()->id(), // Idinadagdag ang ID ng naka-login na user sa order
-                'shop_id' => Shop::first()->id,
-                'order_code' => $order_code,
-                'name' => $request->name,
-                'phone' => $request->phone,
-                'address' => $request->address,
-                'note' => $request->note,
-                'total' => $total,
-                'status' => 0, // 0 means pending
-            ]);
-
-            // Maghahanda ng data para sa order details
-            $orderDetailsData = [];
-            foreach ($cart as $id => $details) {
-                $orderDetailsData[] = [
-                    'order_id' => $order->id,
-                    'product_id' => $id,
-                    'title' => $details['title'],
-                    'price' => $details['price'],
-                    'quantity' => $details['quantity'],
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ];
-
-                // Ibabawas ang stock ng produkto
-                $product = Product::find($id);
-                if ($product) {
-                    $product->stock -= $details['quantity'];
-                    $product->save();
-                }
-            }
-
-            // Isasalba ang order details
-            OrderDetail::insert($orderDetailsData);
-
-            // Lilinisin ang cart mula sa session
-            session()->forget('cart');
-
-            // Ibabalik sa success page
-            return redirect()->route('clientSuccessOrder')->with('success', 'Your order has been placed successfully!');
-
-        } catch (\Exception $e) {
-            // Kung may error, i-log ito at ibalik sa checkout page
-            \Log::error('Order placement failed: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
-            return redirect()->back()->withInput()->withErrors(['checkout_error' => 'There was an error processing your order. Please try again.']);
-        }
-    }
-
-    /**
-     * Ito ang page na ipinapakita pagkatapos matagumpay na makapag-place ng order ang user.
-     */
-    public function successOrder(){
-        $data = [
-            'shop' => Shop::first(), // Impormasyon ng shop
-            'title' => 'Order Success' // Titulo ng page
-        ];
-        return view('client.success-order', $data); // Ibabalik ang 'success-order' view
     }
 
     /**
